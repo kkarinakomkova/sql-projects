@@ -1,0 +1,36 @@
+WITH email_metrics AS (
+  SELECT
+    es.id_account AS id_account_sent,
+    es.id_message AS id_message_sent,
+    eo.id_message AS id_message_open,
+    ev.id_message AS id_message_visit
+  FROM `DA.email_sent` es
+  LEFT JOIN `DA.email_open` eo
+  ON es.id_message = eo.id_message
+  LEFT JOIN `DA.email_visit` ev
+  ON es.id_message = ev.id_message
+),
+session_metrics AS (
+  SELECT
+    ac.account_id,
+    sp.operating_system
+  FROM `DA.account_session` ac
+  JOIN `DA.session_params` sp
+  ON ac.ga_session_id = sp.ga_session_id
+)
+SELECT
+  sm.operating_system,
+  COUNT(DISTINCT em.id_message_sent) AS sent_msg,
+  COUNT(DISTINCT em.id_message_open) AS open_msg,
+  COUNT(DISTINCT em.id_message_visit) AS visit_msg,
+  COUNT(DISTINCT em.id_message_open) / COUNT(DISTINCT em.id_message_sent) * 100 AS open_rate,
+  COUNT(DISTINCT em.id_message_visit) / COUNT(DISTINCT em.id_message_sent) * 100 AS click_rate,
+  COUNT(DISTINCT em.id_message_visit) / COUNT(DISTINCT em.id_message_open) * 100 AS ctor
+FROM `DA.account` a
+JOIN email_metrics em
+ON a.id = em.id_account_sent
+JOIN session_metrics sm
+ON a.id = sm.account_id
+WHERE a.is_unsubscribed = 0
+GROUP BY
+  sm.operating_system
